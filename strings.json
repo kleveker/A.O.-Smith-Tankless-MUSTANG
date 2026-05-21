@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "A. O. Smith Tankless",
+        "description": "Enter your A. O. Smith iCOMM account credentials. Your ATHR-199X3 must already be connected in the A. O. Smith mobile app.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Unable to reach the A. O. Smith API. Check your network connection.",
+      "no_devices": "No compatible tankless (MUSTANG) devices found on this account.",
+      "unknown": "Unexpected error. Check the Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This A. O. Smith account is already configured."
+    }
+  }
+}

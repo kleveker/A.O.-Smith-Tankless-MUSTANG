@@ -1,0 +1,12 @@
+{
+  "domain": "aosmith_tankless",
+  "name": "A. O. Smith Tankless (MUSTANG)",
+  "config_flow": true,
+  "documentation": "https://github.com/home-assistant/core/issues/168470",
+  "issue_tracker": "https://github.com/home-assistant/core/issues/168470",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": ["aiohttp>=3.9.0"],
+  "version": "1.1.0",
+  "iot_class": "cloud_polling"
+}
