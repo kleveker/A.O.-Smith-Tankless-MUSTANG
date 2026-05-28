@@ -102,6 +102,9 @@ class AOSmithTimerTimeEntity(CoordinatorEntity, TimeEntity):
         t1_raw = recirc.get("timer1", {})
         t2_raw = recirc.get("timer2", {})
 
+        if t1_raw is None or t2_raw is None:
+            _LOGGER.warning("Skipping set_value for %s - timer data not ready.", self.entity_id)
+            return
         if self._timer_key == "timer1":
             timer1_input = _timer_to_input(t1_raw, override_field=self._field, override_value=value)
             timer2_input = _timer_to_input(t2_raw)
