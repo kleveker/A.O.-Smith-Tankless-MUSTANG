@@ -7,10 +7,15 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import AOSmithTanklessAPIError, AOSmithTanklessClient
+from .api import (
+    AOSmithTanklessAPIError,
+    AOSmithTanklessAuthError,
+    AOSmithTanklessClient,
+)
 from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,13 +30,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], session
     )
 
-    # Authenticate once on setup
-    await client.authenticate()
+    try:
+        await client.authenticate()
+    except AOSmithTanklessAuthError as err:
+        raise ConfigEntryAuthFailed("Invalid A. O. Smith credentials") from err
+    except AOSmithTanklessAPIError as err:
+        raise ConfigEntryNotReady(f"A. O. Smith API unreachable: {err}") from err
 
     async def async_update_data() -> list[dict]:
         """Fetch data from the API."""
         try:
             return await client.get_devices()
+        except AOSmithTanklessAuthError as err:
+            raise ConfigEntryAuthFailed("Re-authentication required") from err
         except AOSmithTanklessAPIError as err:
             raise UpdateFailed(f"Error communicating with A. O. Smith API: {err}") from err
 

@@ -29,7 +29,6 @@ A Home Assistant custom integration for A. O. Smith MUSTANG tankless water heate
 | Recirculation Timer 2 | `switch` | Enable/disable Timer 2 |
 | Recirculation Timer 2 Start | `time` | Timer 2 start time |
 | Recirculation Timer 2 End | `time` | Timer 2 end time |
-| Recirculation On-Demand | `switch` | Toggle on-demand recirculation |
 | Online Status | `sensor` | Device connectivity status |
 | Error Code | `sensor` | Active error code if any |
 | Active Alerts | `sensor` | Number of active alerts |
@@ -38,6 +37,6 @@ A Home Assistant custom integration for A. O. Smith MUSTANG tankless water heate
 
 ## Notes
 
-- The integration polls the A. O. Smith cloud API every 60 seconds
+- The integration polls the A. O. Smith cloud API every 30 seconds
 - Timer start/end times connect directly to the A. O. Smith cloud — changes may take a few seconds to reflect
 - Compatible with the A. O. Smith iCOMM app running alongside this integration

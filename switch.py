@@ -1,4 +1,4 @@
-"""Switch platform for A. O. Smith Tankless recirculation controls."""
+"""Switch platform for A. O. Smith Tankless recirculation timer controls."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -24,6 +24,7 @@ def _timer_to_input(t: dict, override_enabled: bool | None = None) -> dict:
         "start": ts_to_ms(t.get("start")),
         "end": ts_to_ms(t.get("end")),
         "isEnabled": override_enabled if override_enabled is not None else bool(t.get("isEnabled", False)),
+        "isUnset": False,
     }
 
 
@@ -45,14 +46,21 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class _RecircBase(CoordinatorEntity, SwitchEntity):
-    _attr_has_entity_name = True
+class AOSmithTimerSwitch(CoordinatorEntity, SwitchEntity):
+    """Enable/disable a recirculation timer."""
 
-    def __init__(self, coordinator, client, device: dict) -> None:
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:timer"
+
+    def __init__(self, coordinator, client, device: dict, timer_number: int) -> None:
         super().__init__(coordinator)
         self._client = client
         self._junction_id: str = device["junctionId"]
         self._dsn: str = device["dsn"]
+        self._timer_number = timer_number
+        self._timer_key = f"timer{timer_number}"
+        self._attr_name = f"Recirculation Timer {timer_number}"
+        self._attr_unique_id = f"{DOMAIN}_{self._dsn}_recirc_timer{timer_number}_enabled"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._dsn)},
             manufacturer=MANUFACTURER,
@@ -60,46 +68,11 @@ class _RecircBase(CoordinatorEntity, SwitchEntity):
             name=device.get("name", "Tankless Water Heater"),
         )
 
-    def _get_device(self) -> dict:
+    def _get_recirc(self) -> dict:
         for device in self.coordinator.data:
             if device.get("junctionId") == self._junction_id:
-                return device
+                return device.get("data", {}).get("recirculation", {})
         return {}
-
-    def _get_recirc(self) -> dict:
-        return self._get_device().get("data", {}).get("recirculation", {})
-
-
-class AOSmithRecircOnDemandSwitch(_RecircBase):
-    _attr_icon = "mdi:pump"
-
-    def __init__(self, coordinator, client, device: dict) -> None:
-        super().__init__(coordinator, client, device)
-        self._attr_name = "Recirculation On-Demand"
-        self._attr_unique_id = f"{DOMAIN}_{self._dsn}_recirc_on_demand"
-
-    @property
-    def is_on(self) -> bool:
-        return bool(self._get_recirc().get("pumpModeOnDemand", False))
-
-    async def async_turn_on(self, **kwargs) -> None:
-        await self._client.set_recirculation_on_demand(self._junction_id, True)
-        await self.coordinator.async_request_refresh()
-
-    async def async_turn_off(self, **kwargs) -> None:
-        await self._client.set_recirculation_on_demand(self._junction_id, False)
-        await self.coordinator.async_request_refresh()
-
-
-class AOSmithTimerSwitch(_RecircBase):
-    _attr_icon = "mdi:timer"
-
-    def __init__(self, coordinator, client, device: dict, timer_number: int) -> None:
-        super().__init__(coordinator, client, device)
-        self._timer_number = timer_number
-        self._timer_key = f"timer{timer_number}"
-        self._attr_name = f"Recirculation Timer {timer_number}"
-        self._attr_unique_id = f"{DOMAIN}_{self._dsn}_recirc_timer{timer_number}_enabled"
 
     @property
     def is_on(self) -> bool:

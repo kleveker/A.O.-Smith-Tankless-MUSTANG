@@ -8,6 +8,13 @@
           "email": "Email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate A. O. Smith Tankless",
+        "description": "The password for {email} is no longer valid. Enter the new password.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -17,7 +24,8 @@
       "unknown": "Unexpected error. Check the Home Assistant logs."
     },
     "abort": {
-      "already_configured": "This A. O. Smith account is already configured."
+      "already_configured": "This A. O. Smith account is already configured.",
+      "reauth_successful": "Re-authentication was successful."
     }
   }
 }

@@ -75,8 +75,8 @@ class AOSmithTanklessWaterHeater(CoordinatorEntity, WaterHeaterEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        """Return current temperature (setpoint as proxy — no inlet sensor)."""
-        return self._get_device_data().get("data", {}).get("temperatureSetpoint")
+        """Return None — the API exposes no measured water temperature."""
+        return None
 
     @property
     def target_temperature(self) -> float | None:
