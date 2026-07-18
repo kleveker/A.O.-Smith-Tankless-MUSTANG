@@ -1,6 +1,7 @@
 """A. O. Smith iCOMM API client for Tankless (MUSTANG) water heaters."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -17,6 +18,12 @@ GRAPHQL_URL = API_BASE_URL + "/graphql"
 
 APP_VERSION = "14.1.0"
 USER_AGENT = "okhttp/4.12.0"
+
+# Retries for updateRecirculationSchedule when the cloud reports
+# SET_BLOCK_FAULT (cloud accepted the request but could not reach the
+# iCOMM module). The module usually recovers within a minute or two.
+SET_TIMER_RETRIES = 3
+SET_TIMER_RETRY_DELAY = 10  # seconds; doubles each attempt (10s, 20s)
 
 DEVICES_QUERY = """
 query devices($forceUpdate: Boolean, $junctionIds: [String]) {
@@ -116,7 +123,11 @@ class AOSmithTanklessAuthError(Exception):
 
 
 class AOSmithTanklessAPIError(Exception):
-    pass
+    """API error, carrying GraphQL extension codes when available."""
+
+    def __init__(self, message: str, codes: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.codes: list[str] = codes or []
 
 
 class AOSmithTanklessClient:
@@ -170,9 +181,14 @@ class AOSmithTanklessClient:
             raise AOSmithTanklessAPIError(f"API request failed: {err}") from err
         if "errors" in result:
             errors = result["errors"]
-            if any(e.get("extensions", {}).get("code") == "INVALID_CREDENTIALS" for e in errors):
+            codes = [
+                e.get("extensions", {}).get("code")
+                for e in errors
+                if e.get("extensions", {}).get("code")
+            ]
+            if "INVALID_CREDENTIALS" in codes:
                 raise AOSmithTanklessAuthError("Invalid email or password")
-            raise AOSmithTanklessAPIError(f"GraphQL error: {errors}")
+            raise AOSmithTanklessAPIError(f"GraphQL error: {errors}", codes=codes)
         return result.get("data", {})
 
     async def get_devices(self) -> list[dict[str, Any]]:
@@ -193,7 +209,26 @@ class AOSmithTanklessClient:
         await self._graphql(SET_RECIRCULATION_MUTATION, {"junctionId": junction_id, "pumpModeOnDemand": enabled})
 
     async def set_timer(self, junction_id: str, timer1: dict, timer2: dict) -> None:
-        await self._graphql(SET_TIMER_MUTATION, {"junctionId": junction_id, "timer1": timer1, "timer2": timer2})
+        """Push the recirculation schedule, retrying on SET_BLOCK_FAULT."""
+        for attempt in range(1, SET_TIMER_RETRIES + 1):
+            try:
+                await self._graphql(
+                    SET_TIMER_MUTATION,
+                    {"junctionId": junction_id, "timer1": timer1, "timer2": timer2},
+                )
+                return
+            except AOSmithTanklessAPIError as err:
+                if "SET_BLOCK_FAULT" not in err.codes or attempt == SET_TIMER_RETRIES:
+                    raise
+                delay = SET_TIMER_RETRY_DELAY * attempt
+                _LOGGER.warning(
+                    "SET_BLOCK_FAULT on updateRecirculationSchedule "
+                    "(attempt %d/%d); retrying in %ds",
+                    attempt,
+                    SET_TIMER_RETRIES,
+                    delay,
+                )
+                await asyncio.sleep(delay)
 
 
 def parse_timestamp_ms(ts_ms: int | None, tz_name: str = "UTC") -> str | None:

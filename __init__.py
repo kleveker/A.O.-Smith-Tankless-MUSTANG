@@ -16,7 +16,7 @@ from .api import (
     AOSmithTanklessAuthError,
     AOSmithTanklessClient,
 )
-from .const import DOMAIN, UPDATE_INTERVAL
+from .const import DOMAIN, FAILURE_TOLERANCE, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,14 +37,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except AOSmithTanklessAPIError as err:
         raise ConfigEntryNotReady(f"A. O. Smith API unreachable: {err}") from err
 
+    # Transient-failure tolerance: the iCOMM cloud regularly drops single
+    # polls. Serve the last good payload for up to FAILURE_TOLERANCE
+    # consecutive failures before letting entities go unavailable.
+    failure_state: dict = {"count": 0, "last_good": None}
+
     async def async_update_data() -> list[dict]:
-        """Fetch data from the API."""
+        """Fetch data from the API, tolerating brief cloud blips."""
         try:
-            return await client.get_devices()
+            data = await client.get_devices()
         except AOSmithTanklessAuthError as err:
             raise ConfigEntryAuthFailed("Re-authentication required") from err
         except AOSmithTanklessAPIError as err:
-            raise UpdateFailed(f"Error communicating with A. O. Smith API: {err}") from err
+            failure_state["count"] += 1
+            if (
+                failure_state["last_good"] is not None
+                and failure_state["count"] < FAILURE_TOLERANCE
+            ):
+                _LOGGER.warning(
+                    "A. O. Smith poll failed (%d/%d consecutive; serving cached data): %s",
+                    failure_state["count"],
+                    FAILURE_TOLERANCE,
+                    err,
+                )
+                return failure_state["last_good"]
+            raise UpdateFailed(
+                f"Error communicating with A. O. Smith API: {err}"
+            ) from err
+        failure_state["count"] = 0
+        failure_state["last_good"] = data
+        return data
 
     coordinator = DataUpdateCoordinator(
         hass,
