@@ -38,7 +38,7 @@ def _active_alerts(device: dict) -> str:
 
 def _recirc_timer(timer_key: str, field: str) -> Callable[[dict], Any]:
     def _fn(device: dict) -> Any:
-        recirc = device.get("data", {}).get("recirculation", {})
+        recirc = device.get("data", {}).get("recirculation") or {}
         timer = recirc.get(timer_key, {})
         if field == "enabled":
             return "On" if timer.get("isEnabled") else "Off"
@@ -122,7 +122,7 @@ SENSOR_DESCRIPTIONS: tuple[AOSmithSensorDescription, ...] = (
     AOSmithSensorDescription(
         key="recirc_on_demand",
         name="Recirculation On-Demand",
-        value_fn=lambda d: "On" if d.get("data", {}).get("recirculation", {}).get("pumpModeOnDemand") else "Off",
+        value_fn=lambda d: "On" if (d.get("data", {}).get("recirculation") or {}).get("pumpModeOnDemand") else "Off",
     ),
 )
 

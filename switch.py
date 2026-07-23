@@ -38,7 +38,7 @@ async def async_setup_entry(
     client = entry_data["client"]
     entities = []
     for device in coordinator.data:
-        recirc = device.get("data", {}).get("recirculation", {})
+        recirc = device.get("data", {}).get("recirculation") or {}
         if not recirc.get("recirculationCapability"):
             continue
         entities.append(AOSmithTimerSwitch(coordinator, client, device, timer_number=1))
@@ -71,7 +71,7 @@ class AOSmithTimerSwitch(CoordinatorEntity, SwitchEntity):
     def _get_recirc(self) -> dict:
         for device in self.coordinator.data:
             if device.get("junctionId") == self._junction_id:
-                return device.get("data", {}).get("recirculation", {})
+                return device.get("data", {}).get("recirculation") or {}
         return {}
 
     @property
